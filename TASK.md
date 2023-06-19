@@ -1,5 +1,8 @@
 # Тестовое задание на позицию стажера-бекендера
 
+## Copied from
+[github.com/cowabungal/avitoTech](https://github.com/cowabungal/avitoTech)
+
 ## Микросервис для работы с балансом пользователей.
 
 **Проблема:**

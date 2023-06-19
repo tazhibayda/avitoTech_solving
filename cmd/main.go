@@ -1,8 +1,9 @@
 package main
 
 import (
-	"avitoTech_solving/pkg/repository"
-	"fmt"
+	"avitoTech_solving/pkg/database"
+	"avitoTech_solving/pkg/handler"
+	"github.com/gin-gonic/gin"
 	"os"
 
 	yaml "gopkg.in/yaml.v3"
@@ -16,7 +17,7 @@ func main() {
 		panic(err)
 	}
 
-	var config repository.Config
+	var config database.Config
 
 	err = yaml.Unmarshal(cnf, &config)
 
@@ -24,11 +25,16 @@ func main() {
 		panic(err)
 	}
 
-	db, err := repository.InitDB(config)
+	database.ConfigInit(config)
 
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(db)
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.Default()
+
+	handler.Routers(router)
+	router.Run()
 }
