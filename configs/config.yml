@@ -4,6 +4,8 @@ database:
   username: "postgres"
   password: "postgrespw"
   host: "localhost"
-  port: 49153
+  port: 49154
   dbname: "postgres"
   sslmode: "disable"
+
+exchange-api: "48e2c6d2cb898261e6db6785d26234a4"

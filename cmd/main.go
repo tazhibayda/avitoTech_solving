@@ -18,8 +18,16 @@ func main() {
 	}
 
 	var config database.Config
-
+	var api struct {
+		ExchangeApi string `yaml:"exchange-api"`
+	}
 	err = yaml.Unmarshal(cnf, &config)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = yaml.Unmarshal(cnf, &api)
 
 	if err != nil {
 		panic(err)

@@ -59,6 +59,16 @@ func transaction(c *gin.Context) {
 	var transactions []model.Transaction
 
 	q := fmt.Sprintf("SELECT * from transactions where user_id = %d", id.Id)
+
+	sort := c.Query("sort")
+	order := c.Query("order")
+	if sort != "" {
+		q = fmt.Sprintf("SELECT * from transactions where user_id = %d order by %s", id.Id, sort)
+		if order != "" {
+			q += " " + order
+		}
+	}
+
 	rows, err := database.DB.Queryx(q)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
@@ -85,8 +95,8 @@ func transaction(c *gin.Context) {
 }
 func topUp(c *gin.Context) {
 	var req struct {
-		ID     int     `json:"user_id"`
-		Amount float64 `json:"amount"`
+		ID     int `json:"user_id"`
+		Amount int `json:"amount"`
 	}
 
 	jsonData, err := c.GetRawData()
@@ -105,16 +115,22 @@ func topUp(c *gin.Context) {
 	}
 	var user model.User
 
-	q := fmt.Sprintf("SELECT * from users where user_id = %d", req.ID)
-	err = database.DB.QueryRow(q).Scan(&user.ID, &user.Balance)
+	q := fmt.Sprintf("SELECT balance from users where user_id = %d", req.ID)
+	err = database.DB.QueryRow(q).Scan(&user.Balance)
+	user.ID = int64(req.ID)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			user.Balance = user.Balance + req.Amount
 			tx := database.DB.MustBegin()
-			fmt.Println(user.ID, user.Balance, req.ID)
-			tx.MustExec("INSERT INTO users values ($1,$2)", req.ID, user.Balance)
+			tx.MustExec("INSERT INTO users values ($1,$2)", req.ID, user.Balance*100)
 			err = tx.Commit()
 			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			transact := model.Transaction{UserId: req.ID, Amount: req.Amount, Operation: fmt.Sprintf("TopUp by bank card %dRUB", req.Amount)}
+
+			if createTransaction(transact) != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -125,12 +141,20 @@ func topUp(c *gin.Context) {
 		return
 	}
 
-	user.Balance += req.Amount
+	user.Balance += req.Amount * 100
 	_, err = database.DB.NamedExec("Update users SET balance=:balance WHERE user_id =:user_id", user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	transact := model.Transaction{UserId: req.ID, Amount: req.Amount, Operation: fmt.Sprintf("TopUp by bank card %dRUB", req.Amount)}
+
+	if createTransaction(transact) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	user.Balance /= 100
 	c.IndentedJSON(http.StatusOK, &user)
 	return
 	//Тело запроса:
@@ -139,8 +163,8 @@ func topUp(c *gin.Context) {
 }
 func debit(c *gin.Context) {
 	var req struct {
-		ID     int     `json:"user_id"`
-		Amount float64 `json:"amount"`
+		ID     int `json:"user_id"`
+		Amount int `json:"amount"`
 	}
 
 	jsonData, err := c.GetRawData()
@@ -173,12 +197,19 @@ func debit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "insufficient funds for this operation"})
 		return
 	}
-	user.Balance -= req.Amount
+	user.Balance -= req.Amount * 100
 	_, err = database.DB.NamedExec("Update users SET balance=:balance WHERE user_id =:user_id", user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	transact := model.Transaction{UserId: req.ID, Amount: req.Amount, Operation: fmt.Sprintf("Debit by by purchase %dRUB", req.Amount)}
+
+	if createTransaction(transact) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	user.Balance /= 100
 	c.IndentedJSON(http.StatusOK, &user)
 	return
 	//Тело запроса:
@@ -187,9 +218,9 @@ func debit(c *gin.Context) {
 }
 func transfer(c *gin.Context) {
 	var req struct {
-		ID     int     `json:"user_id"`
-		ToID   int     `json:"to_id"`
-		Amount float64 `json:"amount"`
+		ID     int `json:"user_id"`
+		ToID   int `json:"to_id"`
+		Amount int `json:"amount"`
 	}
 
 	jsonData, err := c.GetRawData()
@@ -235,22 +266,45 @@ func transfer(c *gin.Context) {
 		return
 	}
 
-	user.Balance -= req.Amount
+	user.Balance -= req.Amount * 100
 	_, err = database.DB.NamedExec("Update users SET balance=:balance WHERE user_id =:user_id", user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	userTo.Balance += req.Amount
+	userTo.Balance += req.Amount * 100
 	_, err = database.DB.NamedExec("Update users SET balance=:balance WHERE user_id =:user_id", userTo)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	transact := model.Transaction{UserId: req.ID, Amount: req.Amount, Operation: fmt.Sprintf("Debit by transfer %dRUB", req.Amount)}
+
+	if createTransaction(transact) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	transact = model.Transaction{UserId: req.ToID, Amount: req.Amount, Operation: fmt.Sprintf("TopUp by transfer %dRUB", req.Amount)}
+
+	if createTransaction(transact) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	userTo.Balance /= 100
 	c.IndentedJSON(http.StatusOK, &userTo)
 	return
 	//Тело запроса:
 	//user_id - идентификатор пользователя, с баланса которого списываются средства,
 	//	to_id - идентификатор пользователя, на баланс которого начисляются средства,
 	//	amount - сумма перевода в RUB.
+}
+
+func createTransaction(transact model.Transaction) error {
+	tx := database.DB.MustBegin()
+	tx.MustExec("INSERT INTO transactions(user_id, amount, operation) values ($1,$2,$3)", transact.UserId, transact.Amount, transact.Operation)
+	return tx.Commit()
 }

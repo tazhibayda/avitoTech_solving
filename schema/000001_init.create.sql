@@ -4,10 +4,10 @@ create table users
     balance float   not null
 );
 
+
 create table transactions
 (
-    transaction_id integer                            not null
-        constraint transactions_pk
+    transaction_id bigserial
             primary key,
     user_id        integer                            not null
         constraint transactions___fk

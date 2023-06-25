@@ -3,8 +3,8 @@ package model
 import "time"
 
 type User struct {
-	ID      int64   `json:"user_id" db:"user_id"`
-	Balance float64 `json:"balance" db:"balance"`
+	ID      int64 `json:"user_id" db:"user_id"`
+	Balance int   `json:"balance" db:"balance"`
 }
 
 type Transaction struct {
