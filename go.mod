@@ -1,4 +1,4 @@
-module avitoTech_solving
+module github.com/tazhibayda/avitoTech_solving
 
 go 1.18
 

@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"avitoTech_solving/pkg/database"
-	"avitoTech_solving/pkg/model"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/tazhibayda/avitoTech_solving/pkg/database"
+	"github.com/tazhibayda/avitoTech_solving/pkg/model"
 	"net/http"
 )
 

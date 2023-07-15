@@ -1,9 +1,10 @@
 package main
 
 import (
-	"avitoTech_solving/pkg/database"
-	"avitoTech_solving/pkg/handler"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/tazhibayda/avitoTech_solving/pkg/database"
+	"github.com/tazhibayda/avitoTech_solving/pkg/handler"
 	"os"
 
 	yaml "gopkg.in/yaml.v3"
@@ -13,6 +14,7 @@ func main() {
 
 	cnf, err := os.ReadFile("configs/config.yml")
 
+	fmt.Println(cnf)
 	if err != nil {
 		panic(err)
 	}
